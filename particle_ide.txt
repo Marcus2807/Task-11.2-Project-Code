@@ -1,0 +1,79 @@
+// This #include statement was automatically added by the Particle IDE.
+#include <MQTT.h>
+byte server[] = {192,168,0,107}; // THE IP of the broker
+
+
+int button = D2;
+int LED = D6;
+String ledStatus = "off";
+unsigned long duration;
+
+void callback(char* topic, byte* payload, unsigned int length);
+MQTT client(server, 1883,callback);
+void callback(char* topic, byte* payload, unsigned int length) 
+{
+    char p[length + 1];
+    memcpy(p, payload, length);
+    p[length] = NULL;
+    
+    if(!strcmp(p, "criminal"))
+    {
+        alert_system();
+    }
+    delay(1000);
+}
+
+
+void setup() {
+    client.connect(System.deviceID());
+    if(client.isConnected()){
+        client.publish("Success/Connect", "Hello, You have Successfully Connected!");
+    }
+    pinMode(button, INPUT_PULLUP);
+    pinMode(LED,OUTPUT);
+    
+    pinMode(D7, OUTPUT);   // LED on D7
+    pinMode(D6, INPUT);    // echo
+    pinMode(D3, OUTPUT);   // Trig
+
+}
+
+void loop() {
+    int buttonState = digitalRead(button);
+
+    delay(10);                      // even cicuits need a break
+    
+    if(client.isConnected())
+    {
+        if(buttonState == 0){
+            client.publish("button", "pressed");
+            delay(2000);
+        }
+        digitalWrite(D3, HIGH);         // activate trigger
+        delayMicroseconds(10);
+        digitalWrite(D3, LOW);          // de-activate trigger
+        duration = pulseIn(D6, HIGH);  
+        if (duration > 2000    )
+        {// where  2000 raw = ~35cm,  4000 raw = ~80cm
+            digitalWrite(D7, HIGH);     // D7 Blue LED on if far   
+            client.publish("range", "close");
+            delay(1000);
+        } else {
+            digitalWrite(D7, LOW);      // D7 Blue LED off
+        }
+        
+        client.subscribe("alert");
+        client.loop();
+        delay(5000);
+    }
+
+}
+
+void alert_system()
+{
+    digitalWrite(LED,HIGH);
+    delay(5000);
+    digitalWrite(LED,LOW);
+    delay(100);
+}
+
